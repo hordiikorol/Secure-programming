@@ -1,4 +1,4 @@
-"""Lets the program run as `python -m pwmanager`."""
+"""so it runs with python -m pwmanager"""
 
 import sys
 

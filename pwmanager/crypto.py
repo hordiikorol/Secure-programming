@@ -1,4 +1,4 @@
-"""Encryption: scrypt for the key, AES-256-GCM for the vault contents."""
+"""encryption stuff. scrypt makes the key from the master password, aes-256-gcm encrypts the entries"""
 
 import base64
 import json
@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 
 from pwmanager import storage
 
-# scrypt settings recommended by OWASP (uses about 128 MiB per derivation)
+# scrypt settings from owasp, uses like 128MiB each time
 SCRYPT_N = 2 ** 17
 SCRYPT_R = 8
 SCRYPT_P = 1
@@ -20,42 +20,51 @@ class DecryptionError(Exception):
     pass
 
 
-def b64(data):
-    return base64.b64encode(data).decode("ascii")
+def to_base64(raw_bytes):
+    return base64.b64encode(raw_bytes).decode("ascii")
 
 
-def unb64(text):
+def from_base64(text):
     return base64.b64decode(text)
 
 
-def new_kdf_params(n=SCRYPT_N):
-    # the salt is random for every new vault, it is not secret
-    return {"name": "scrypt", "salt": b64(os.urandom(16)), "n": n, "r": SCRYPT_R, "p": SCRYPT_P}
+def new_key_settings(n=SCRYPT_N):
+    # random salt per vault, doesnt need to be secret
+    salt = to_base64(os.urandom(16))
+    return {"name": "scrypt", "salt": salt, "n": n, "r": SCRYPT_R, "p": SCRYPT_P}
 
 
-def derive_key(password, kdf):
-    scrypt = Scrypt(salt=unb64(kdf["salt"]), length=32, n=kdf["n"], r=kdf["r"], p=kdf["p"])
+def derive_key(password, key_settings):
+    scrypt = Scrypt(
+        salt=from_base64(key_settings["salt"]),
+        length=32,
+        n=key_settings["n"],
+        r=key_settings["r"],
+        p=key_settings["p"],
+    )
     return scrypt.derive(password.encode("utf-8"))
 
 
-def encrypt(key, kdf, data):
-    # new random nonce every time, GCM breaks if a nonce is reused with the same key
+def encrypt(key, key_settings, contents):
+    # new nonce every time, reusing one with the same key breaks gcm
     nonce = os.urandom(12)
-    ciphertext = AESGCM(key).encrypt(nonce, json.dumps(data).encode("utf-8"), None)
+    plaintext = json.dumps(contents).encode("utf-8")
+    ciphertext = AESGCM(key).encrypt(nonce, plaintext, None)
     return {
         "format": storage.FORMAT_NAME,
         "version": storage.FORMAT_VERSION,
-        "kdf": kdf,
-        "cipher": {"name": "AES-256-GCM", "nonce": b64(nonce)},
-        "ciphertext": b64(ciphertext),
+        "kdf": key_settings,
+        "cipher": {"name": "AES-256-GCM", "nonce": to_base64(nonce)},
+        "ciphertext": to_base64(ciphertext),
     }
 
 
-def decrypt(key, vault):
-    nonce = unb64(vault["cipher"]["nonce"])
+def decrypt(key, vault_file):
+    nonce = from_base64(vault_file["cipher"]["nonce"])
+    ciphertext = from_base64(vault_file["ciphertext"])
     try:
-        plaintext = AESGCM(key).decrypt(nonce, unb64(vault["ciphertext"]), None)
+        plaintext = AESGCM(key).decrypt(nonce, ciphertext, None)
     except InvalidTag:
-        # GCM checks a tag, so a wrong key (wrong password) or an edited file both end up here
+        # gcm checks a tag so wrong password and tampered file both end up here
         raise DecryptionError("wrong master password or the vault file was modified") from None
     return json.loads(plaintext)

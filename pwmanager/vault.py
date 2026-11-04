@@ -1,7 +1,7 @@
-"""Master password handling.
+"""master password stuff
 
-No password hash is stored. To check the master password we derive the key
-and try to decrypt; if the password is wrong, GCM decryption fails.
+no password hash in the file. to check the master password we just derive the
+key and try to decrypt, wrong password = decryption fails
 """
 
 from pwmanager import crypto, storage
@@ -12,29 +12,31 @@ class WrongPasswordError(Exception):
 
 
 class Vault:
-    def __init__(self, path, key, kdf, data):
+    def __init__(self, path, key, key_settings, contents):
         self.path = path
         self.key = key
-        self.kdf = kdf
-        self.entries = data["entries"]
+        self.key_settings = key_settings
+        self.entries = contents["entries"]
 
     def save(self):
-        storage.save(self.path, crypto.encrypt(self.key, self.kdf, {"entries": self.entries}))
+        vault_file = crypto.encrypt(self.key, self.key_settings, {"entries": self.entries})
+        storage.save(self.path, vault_file)
 
 
 def create(path, master_password):
-    kdf = crypto.new_kdf_params()
-    key = crypto.derive_key(master_password, kdf)
-    data = {"entries": {}}
-    storage.create(path, crypto.encrypt(key, kdf, data))
-    return Vault(path, key, kdf, data)
+    key_settings = crypto.new_key_settings()
+    key = crypto.derive_key(master_password, key_settings)
+    contents = {"entries": {}}
+    storage.create(path, crypto.encrypt(key, key_settings, contents))
+    return Vault(path, key, key_settings, contents)
 
 
 def unlock(path, master_password):
     vault_file = storage.load(path)
-    key = crypto.derive_key(master_password, vault_file["kdf"])
+    key_settings = vault_file["kdf"]
+    key = crypto.derive_key(master_password, key_settings)
     try:
-        data = crypto.decrypt(key, vault_file)
-    except crypto.DecryptionError as e:
-        raise WrongPasswordError(str(e)) from None
-    return Vault(path, key, vault_file["kdf"], data)
+        contents = crypto.decrypt(key, vault_file)
+    except crypto.DecryptionError as error:
+        raise WrongPasswordError(str(error)) from None
+    return Vault(path, key, key_settings, contents)

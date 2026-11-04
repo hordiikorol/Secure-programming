@@ -1,33 +1,22 @@
-# Password Manager
+# password manager
 
-A small command-line password manager for ICS0022 Secure Programming. Credentials
-are kept in a single encrypted vault file, unlocked with a master password.
+small command line password manager, made it for ICS0022 secure programming. all the logins go in one encrypted vault file and you open it with a master password
 
-- The key is derived from the master password with scrypt (N=2^17, r=8, p=1).
-- The vault is encrypted with AES-256-GCM. A wrong master password makes
-  decryption fail, so no password hash is stored.
-- Passwords are typed at hidden prompts and are never printed. `get` copies the
-  password to the clipboard and clears it after 15 seconds.
+key comes from the master password with scrypt (N=2^17 r=8 p=1) and the vault is encrypted with AES-256-GCM. no password hash is stored, wrong master password just means decryption fails. passwords are typed hidden and never printed, get puts it on the clipboard and clears it after 15 sec
 
-See [PROGRESS.md](PROGRESS.md) for the current status.
+what's done / not done is in PROGRESS.md
 
-## Requirements
+## what you need
 
-- Python 3.10 or newer, with `venv`
-- Linux, or WSL on Windows (keep the project in your Linux home folder, not under
-  `/mnt/c`, because file permissions don't work properly there)
-- For `get` on Linux: `xclip`. On WSL the Windows clipboard (`clip.exe`) is used
-  and nothing extra is needed.
+python 3.10+ with venv, on linux or wsl. on wsl keep the project in your linux home folder not /mnt/c, permissions dont really work there. on linux get needs xclip, on wsl it uses clip.exe so nothing extra
 
-On Debian or Ubuntu:
+debian/ubuntu:
 
 ```
 sudo apt install python3 python3-venv xclip
 ```
 
-## Set up
-
-From the project folder:
+## setup
 
 ```
 python3 -m venv .venv
@@ -35,24 +24,22 @@ python3 -m venv .venv
 pip install -r requirements.txt
 ```
 
-## Run the tests
+tests:
 
 ```
 python -m unittest discover -v
 ```
 
-## Use it
+## usage
 
 ```
-python -m pwmanager init                # create a vault (asks for a new master password)
-python -m pwmanager add example.com     # add an entry (asks for username and password)
-python -m pwmanager list                # list entry names and usernames
-python -m pwmanager get example.com     # show the username, copy the password to the clipboard
-python -m pwmanager delete example.com  # delete an entry
+python -m pwmanager init                # new vault, asks for a master password
+python -m pwmanager add example.com     # add entry, asks username + password
+python -m pwmanager list                # list names and usernames
+python -m pwmanager get example.com     # shows username, copies password
+python -m pwmanager delete example.com  # delete entry
 ```
 
-The vault is stored in `~/.pwmanager.vault`. Use `--vault PATH` before the command
-to use another file, for example `python -m pwmanager --vault test.vault list`.
+vault is at ~/.pwmanager.vault, use --vault PATH before the command for another file, eg `python -m pwmanager --vault test.vault list`
 
-The master password must be at least 12 characters. If you forget it, the vault
-cannot be recovered.
+master password has to be 12+ chars. forget it and the vault is gone, no recovery

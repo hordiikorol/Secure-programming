@@ -19,9 +19,9 @@ def sample_vault(ciphertext="AAAA"):
 
 class StorageTests(unittest.TestCase):
     def setUp(self):
-        self._dir = tempfile.TemporaryDirectory()
-        self.addCleanup(self._dir.cleanup)
-        self.path = os.path.join(self._dir.name, "test.vault")
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp_dir.cleanup)
+        self.path = os.path.join(self.temp_dir.name, "test.vault")
 
     def test_create_then_load_returns_same_vault(self):
         storage.create(self.path, sample_vault())
@@ -38,7 +38,7 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(storage.load(self.path)["ciphertext"], "old")
 
     def test_create_refuses_symlink(self):
-        target = os.path.join(self._dir.name, "target")
+        target = os.path.join(self.temp_dir.name, "target")
         os.symlink(target, self.path)
         with self.assertRaises(VaultStorageError):
             storage.create(self.path, sample_vault())
@@ -53,16 +53,16 @@ class StorageTests(unittest.TestCase):
     def test_save_leaves_no_temp_files(self):
         storage.create(self.path, sample_vault())
         storage.save(self.path, sample_vault("new"))
-        self.assertEqual(os.listdir(self._dir.name), ["test.vault"])
+        self.assertEqual(os.listdir(self.temp_dir.name), ["test.vault"])
 
     def test_save_replaces_symlink_without_writing_through_it(self):
-        target = os.path.join(self._dir.name, "target")
-        with open(target, "w") as f:
-            f.write("do not touch")
+        target = os.path.join(self.temp_dir.name, "target")
+        with open(target, "w") as file:
+            file.write("do not touch")
         os.symlink(target, self.path)
         storage.save(self.path, sample_vault())
-        with open(target) as f:
-            self.assertEqual(f.read(), "do not touch")
+        with open(target) as file:
+            self.assertEqual(file.read(), "do not touch")
         self.assertFalse(os.path.islink(self.path))
 
     def test_invalid_vault_is_not_written(self):
@@ -75,7 +75,7 @@ class StorageTests(unittest.TestCase):
             storage.load(self.path)
 
     def test_load_refuses_symlink(self):
-        real = os.path.join(self._dir.name, "real.vault")
+        real = os.path.join(self.temp_dir.name, "real.vault")
         storage.create(real, sample_vault())
         os.symlink(real, self.path)
         with self.assertRaises(VaultStorageError):
@@ -83,24 +83,24 @@ class StorageTests(unittest.TestCase):
 
     def test_load_refuses_directory(self):
         with self.assertRaises(VaultStorageError):
-            storage.load(self._dir.name)
+            storage.load(self.temp_dir.name)
 
     def test_load_refuses_invalid_json(self):
-        with open(self.path, "w") as f:
-            f.write("not json {")
+        with open(self.path, "w") as file:
+            file.write("not json {")
         with self.assertRaises(VaultStorageError):
             storage.load(self.path)
 
     def test_load_refuses_wrong_structure(self):
         for content in ('[]', '{"format": "pwmanager-vault", "version": 99}'):
-            with open(self.path, "w") as f:
-                f.write(content)
+            with open(self.path, "w") as file:
+                file.write(content)
             with self.assertRaises(VaultStorageError):
                 storage.load(self.path)
 
     def test_load_refuses_oversized_file(self):
-        with open(self.path, "wb") as f:
-            f.truncate(storage.MAX_VAULT_BYTES + 1)
+        with open(self.path, "wb") as file:
+            file.truncate(storage.MAX_VAULT_BYTES + 1)
         with self.assertRaises(VaultStorageError):
             storage.load(self.path)
 

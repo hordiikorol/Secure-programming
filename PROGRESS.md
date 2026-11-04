@@ -1,29 +1,25 @@
-# Progress note - Checkpoint 2
+# progress - checkpoint 2
 
-## Done
+## done
 
-- Storage (`storage.py`): the vault is one JSON file, created with 0600
-  permissions, saved atomically (temp file + rename), symlinks refused.
-- Encryption (`crypto.py`): key from the master password with scrypt
-  (N=2^17, r=8, p=1, random salt), contents encrypted with AES-256-GCM with a
-  new random nonce on every save. Salt, scrypt settings and nonce are stored in
-  the `kdf` and `cipher` sections.
-- Master password (`vault.py`): no hash is stored. A wrong password gives a
-  wrong key, so GCM decryption fails and the vault doesn't open.
-- CLI (`cli.py`): init, add, list, get, delete. Passwords are typed with
-  getpass and never printed, `get` copies to the clipboard and clears it after
-  15 seconds.
-- 27 unit tests (fake passwords only).
+storage.py - vault is one json file, made with 0600 perms. saving writes a temp file and renames it over the old one so a crash cant break the vault. symlinks get refused
 
-## Known problems
+crypto.py - key from the master password with scrypt (N=2^17 r=8 p=1, random salt), contents encrypted with AES-256-GCM, new random nonce every save. salt, scrypt settings and nonce are stored in the kdf and cipher parts of the file
 
-- Python can't wipe the key/passwords from memory.
-- A vault file edited by hand in a broken way can crash the program with a
-  traceback instead of a nice error.
-- `get` needs xclip on Linux (or clip.exe on WSL).
-- If two instances edit the vault at the same time, the last save wins.
+vault.py - no hash stored. wrong password = wrong key = gcm decryption fails, vault doesnt open
 
-## Next
+cli.py - init, add, list, get, delete. passwords typed with getpass and never printed, get copies to clipboard and clears after 15 sec
+
+27 unit tests, fake passwords only
+
+## known problems
+
+- python cant wipe the key/passwords from memory
+- if the vault file gets edited by hand and broken it can crash with a traceback instead of a normal error
+- get needs xclip on linux (or clip.exe on wsl)
+- two instances editing at once = last save wins
+
+## next
 
 - change master password
 - edit an entry
