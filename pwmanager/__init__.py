@@ -1,1 +1,1 @@
-"""small command line password manager, ICS0022 secure programming project"""
+"""Small command line password manager, ICS0022 Secure Programming project"""

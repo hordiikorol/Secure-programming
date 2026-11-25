@@ -1,4 +1,4 @@
-"""so it runs with python -m pwmanager"""
+"""So it runs with python -m pwmanager"""
 
 import sys
 
