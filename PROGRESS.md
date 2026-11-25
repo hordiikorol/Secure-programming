@@ -1,25 +1,30 @@
-# progress - checkpoint 2
+# Progress - final
 
-## done
+The project is finished. I skipped turning in a separate checkpoint 3 draft because everything was already done by then, the final report is in docs/.
 
-storage.py - vault is one json file, made with 0600 perms. saving writes a temp file and renames it over the old one so a crash cant break the vault. symlinks get refused
+## Done
 
-crypto.py - key from the master password with scrypt (N=2^17 r=8 p=1, random salt), contents encrypted with AES-256-GCM, new random nonce every save. salt, scrypt settings and nonce are stored in the kdf and cipher parts of the file
+Multiple users. One vault file, every user has their own encrypted part with their own salt and key. Commands: init, register, add, list, get, edit, delete, passwd.
 
-vault.py - no hash stored. wrong password = wrong key = gcm decryption fails, vault doesnt open
+Master password. scrypt runs once per login and gives 64 bytes. The second half gets hashed with SHA-256 and stored as the password hash, login compares it in constant time. The first half is the AES-256-GCM key. A wrong password gets stopped by the hash check before anything is decrypted.
 
-cli.py - init, add, list, get, delete. passwords typed with getpass and never printed, get copies to clipboard and clears after 15 sec
+Access control (vault.py). Every entry operation goes through `Session._authorize()`, it checks the session is still open and that the entry is yours, and logs access_denied if not. On top of that every user's entries are encrypted with their own key, and the user name goes into GCM as associated data so you cant swap two users parts in the file. The vault file has to be yours and 0600 or it wont open.
 
-27 unit tests, fake passwords only
+Memory (secure_memory.py, secure_input.py). Passwords are read from the terminal byte by byte into a fixed size bytearray (not getpass, that gives a str which cant be wiped) and zeroed right after. Keys are bytearrays and get zeroed when the session closes, also on errors and after passwd. Encoded passwords, decrypted JSON and the clipboard bytes get zeroed too. Core dumps are off and on Linux the process is not dumpable.
 
-## known problems
+Input validation (validation.py). User names, entry names, usernames, passwords, master passwords, paths and the y/N answer are all checked: length, no control or invisible characters, no spaces at the ends where it matters. The vault file gets checked properly too, strict base64, salt/nonce/hash lengths, scrypt N only 2^14..2^18 so a tampered file cant eat all the memory. Decrypted data is checked as well. Error messages never repeat the bad value.
 
-- python cant wipe the key/passwords from memory
-- if the vault file gets edited by hand and broken it can crash with a traceback instead of a normal error
-- get needs xclip on linux (or clip.exe on wsl)
-- two instances editing at once = last save wins
+Logging (logs.py). JSON lines in ~/.pwmanager.log (0600). Each line has time, level, event, a random session id for the run, the user and outcome (success/failure/denied). Events: vault_created, user_registered, login_ok, login_failed, entry_added/viewed/edited/deleted, entries_listed, master_password_changed, access_denied, invalid_input, command_failed, unexpected_error. Only a fixed list of fields is allowed so passwords or keys cant end up there by accident. Entry names arent logged either.
 
-## next
+Errors. Short messages, no tracebacks. Unknown user and wrong password look the same and take about the same time. Anything unexpected is "Something went wrong" and only the error type goes in the log. A broken vault file gives a normal error, no crash.
 
-- change master password
-- edit an entry
+Locking. Commands hold a flock on a .lock file so two running at once cant overwrite each other.
+
+Tests: 116, fake passwords only, all pass. See TEST_RESULTS.md.
+
+## Known problems
+
+- entry passwords are inside the encrypted JSON, so after decrypting they are Python strings and those cant be wiped. The cryptography library also keeps its own copy of the key inside AESGCM.
+- user names are visible in the vault file
+- anyone who can write the vault file can delete it or add a user, they still cant read other users entries
+- `get` needs xclip on Linux (or clip.exe on WSL)

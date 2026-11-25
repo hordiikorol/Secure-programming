@@ -3,3 +3,8 @@ __pycache__/
 *.pyc
 *.vault
 .vault-*.tmp
+*.vault.lock
+*.log
+*.zip
+HW3/
+checkpoint*-*.pdf
